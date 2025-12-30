@@ -1,0 +1,13 @@
+[project]
+name = "langgraph-tutorial"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.9"
+dependencies = [
+    "langchain>=0.3.27",
+    "langchain-community>=0.3.31",
+    "langchain-core>=0.3.81",
+    "langchain-ollama>=0.3.10",
+    "langgraph>=0.6.11",
+]
