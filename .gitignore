@@ -218,3 +218,5 @@ __marimo__/
 # database files
 *.db
 *.db-*
+
+notebooks/faiss_memory
