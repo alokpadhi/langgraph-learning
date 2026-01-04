@@ -2352,6 +2352,1001 @@ Use this to choose the right pattern:
 | Simple, single-domain | **Single Agent** |
 
 ---
+**very important architectural question**
+
+> **Chapter 11 patterns can be implemented in TWO valid ways**
+> 1️⃣ **Single-agent, multi-role graphs**
+> 2️⃣ **True multi-agent systems using subgraphs (agents-as-nodes)**
+>
+> **Both are correct — but they solve different problems.**
+> We intentionally start with **(1)** in Chapter 11, and **(2)** becomes mandatory in **Multi-Agent chapters (12+)**.
+
+Let’s unpack this carefully.
+
+---
+
+## 1️⃣ Why Chapter 11 LOOKS Like “One Agent”
+
+You’re absolutely right:
+In Chapter 11, patterns like:
+
+* Router
+* Supervisor
+* Critic–Generator
+* Plan-and-Execute
+
+were shown as:
+
+* One `StateGraph`
+* Multiple nodes
+* Conditional edges
+* Different *roles* implemented as functions
+
+### That is **intentional**
+
+Because **Chapter 11 is about architectural patterns**, not deployment topology.
+
+> At this stage, we are answering:
+> **“How should control flow be structured?”**
+> not
+> **“How many agents should exist?”**
+
+---
+
+## 2️⃣ Key Concept You Need to Internalize
+
+### 🔑 **Agent ≠ Graph ≠ Node**
+
+These are different abstraction levels.
+
+| Concept | What it really is                      |
+| ------- | -------------------------------------- |
+| Node    | A step / role / responsibility         |
+| Graph   | A control system                       |
+| Agent   | A system with autonomy + memory + loop |
+
+👉 In Chapter 11, we are building **one agent with multiple internal roles**.
+
+This is **not wrong** — in fact, it’s often **preferred**.
+
+---
+
+## 3️⃣ Single-Agent, Multi-Role Graphs (Chapter 11)
+
+### What this means
+
+You have:
+
+* One agent
+* One state
+* One execution loop
+* Multiple **roles** implemented as nodes
+
+Example:
+
+```
+Single Agent
+ ├─ Router node
+ ├─ Worker node
+ ├─ Critic node
+ └─ Aggregator node
+```
+
+### Why this is useful
+
+✅ Simpler
+✅ Easier to debug
+✅ Cheaper
+✅ Deterministic
+✅ Shared state is easy
+
+### When this is the RIGHT choice
+
+Use **single-agent patterns** when:
+
+* Tasks are tightly coupled
+* Shared context is critical
+* You want strong control
+* You don’t need autonomy between roles
+
+> **Most production “agents” should start this way.**
+
+---
+
+## 4️⃣ So When Do We Need Subgraphs / Agents-as-Nodes?
+
+This is the **next level**, and yes — **we WILL cover it**, explicitly.
+
+### This belongs to **Multi-Agent Systems (Chapters 12–15)**
+
+Now let’s see the difference.
+
+---
+
+## 5️⃣ True Multi-Agent Systems (Subgraphs)
+
+### What changes fundamentally
+
+Instead of:
+
+```
+One Graph
+ ├─ Node A
+ ├─ Node B
+ └─ Node C
+```
+
+You now have:
+
+```
+Top-Level Graph
+ ├─ Agent A (subgraph)
+ ├─ Agent B (subgraph)
+ └─ Agent C (subgraph)
+```
+
+Each sub-agent has:
+
+* Its own state
+* Its own memory
+* Its own loop
+* Its own termination
+* Possibly its own tools
+
+This is **not just an implementation detail** — it’s a **different system**.
+
+---
+
+## 6️⃣ Why We Don’t Jump to Subgraphs Immediately
+
+### Because most people misuse multi-agent systems.
+
+Common beginner mistake:
+
+> “Let’s create multiple agents because it sounds powerful”
+
+Reality:
+
+* More agents = more coordination problems
+* More latency
+* More cost
+* Harder debugging
+* Harder evaluation
+
+### Architectural rule (important)
+
+> **If roles share the same state and goals → use ONE agent**
+> **If roles have independent goals or autonomy → use MULTIPLE agents**
+
+---
+
+## 7️⃣ Concrete Comparison (Very Important)
+
+### Router Pattern — Two Ways
+
+#### ✅ Single-Agent Router (Chapter 11)
+
+```
+StateGraph
+ ├─ router_node()
+ ├─ math_handler()
+ └─ qa_handler()
+```
+
+* One agent
+* Deterministic routing
+* Shared context
+
+Best for:
+
+* Tool routing
+* Task classification
+
+---
+
+#### 🤖 Multi-Agent Router (Later)
+
+```
+Coordinator Agent
+ ├─ Math Agent
+ └─ QA Agent
+```
+
+* Independent reasoning
+* Independent memory
+* More expensive
+
+Best for:
+
+* Different expertise
+* Long-running autonomy
+
+---
+
+## 8️⃣ Supervisor Pattern — Two Ways
+
+### Single-Agent Supervisor
+
+* Supervisor plans
+* Workers are nodes
+* Shared state
+* Graph-controlled
+
+This is **Plan-and-Execute**.
+
+### Multi-Agent Supervisor
+
+* Supervisor is an agent
+* Workers are agents
+* Parallel execution
+* Message passing
+
+This is **Manager–Worker multi-agent**.
+
+> Same pattern.
+> Different *deployment topology*.
+
+---
+
+## 9️⃣ Why Chapter 11 Was Done This Way (Pedagogical Reason)
+
+We intentionally did Chapter 11 with:
+
+* One graph
+* One agent
+* Multiple roles
+
+Because:
+
+1. It isolates **control-flow patterns**
+2. It avoids premature complexity
+3. It teaches **thinking in graphs**
+4. It prevents “multi-agent hype misuse”
+
+Only after this foundation does multi-agent make sense.
+
+---
+
+## 🔟 Where Subgraphs Fit Exactly
+
+### We will explicitly cover:
+
+* Using a **compiled graph as a node**
+* Passing state between graphs
+* Message-passing vs shared state
+* Failure isolation
+* Parallel agent execution
+
+📍 **This starts in Chapter 12**
+📍 Deep dive in Chapters 13–15
+
+---
+
+## 1️⃣1️⃣ Interview-Level Answer (Use This)
+
+If asked:
+
+> “Are router/supervisor patterns single-agent or multi-agent?”
+
+Answer:
+
+> “They’re architectural patterns, not agent-count prescriptions.
+> You can implement them inside a single agent using graph nodes when roles are tightly coupled and share state.
+> When roles need autonomy, independent memory, or parallel execution, the same patterns naturally lift into multi-agent systems using subgraphs or agent-as-node designs.”
+
+That answer is **very strong**.
+
+---
+
+## ✅ Final Takeaway (Memorize This)
+
+> **Chapter 11 teaches *how to structure intelligence***
+> **Chapter 12+ teaches *how to distribute intelligence***
+
+You’re asking the *right* questions — this is exactly the mindset needed for real agent systems.
+
+---
+
+
+## 🎯 Three Approaches to "Multi-Agent" Systems
+
+### Approach 1: Single Graph with Nodes
+
+```python
+# ❌ This is NOT truly multi-agent
+# ✅ This IS a single agent with multiple steps
+
+workflow = StateGraph(State)
+workflow.add_node("researcher", researcher_function)  # Just a function
+workflow.add_node("writer", writer_function)          # Just a function
+workflow.add_node("reviewer", reviewer_function)      # Just a function
+# All nodes share same state, same graph, same execution context
+```
+
+**When to use:**
+- Simple workflows with clear steps
+- All "agents" need same state
+- Tight coupling is acceptable
+- You want simplicity
+
+---
+
+### Approach 2: Subgraphs (Each Agent is a Graph)
+
+```python
+# ✅ TRUE multi-agent with subgraphs
+# Each agent is an independent compiled graph
+
+# Agent 1: Research Agent (independent graph)
+research_agent = research_workflow.compile()
+
+# Agent 2: Writer Agent (independent graph)  
+writer_agent = writer_workflow.compile()
+
+# Parent orchestrator uses agents as nodes
+main_workflow.add_node("research", research_agent)  # Graph as node!
+main_workflow.add_node("write", writer_agent)       # Graph as node!
+```
+
+**When to use:**
+- Each agent has complex internal logic
+- Agents can be developed/tested independently
+- Different state schemas for each agent
+- Reusable agent modules
+
+---
+
+### Approach 3: Distributed Agents (Separate Processes)
+
+```python
+# ✅ TRUE distributed multi-agent
+# Agents run in separate processes/services
+# Communicate via message passing, APIs, or queues
+
+# Agent 1 running on server A
+research_service = FastAPI_Service(research_agent)
+
+# Agent 2 running on server B
+writer_service = FastAPI_Service(writer_agent)
+
+# Coordinator invokes via HTTP/RPC
+coordinator.invoke_agent("research_service", task)
+```
+
+**When to use:**
+- Agents need to scale independently
+- Different deployment requirements
+- True isolation needed
+- Enterprise microservices architecture
+
+---
+
+## 📝 Let me show you the CORRECT implementations
+
+### Example 1: Router Pattern with Subgraphs (The Right Way)
+
+```python
+from typing import TypedDict, Annotated, Sequence, Literal
+from operator import add
+from langgraph.graph import StateGraph, END
+from langchain_ollama import ChatOllama
+from langchain_core.prompts import ChatPromptTemplate
+from langchain_core.messages import HumanMessage, AIMessage, BaseMessage
+import logging
+
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
+
+# ==================== APPROACH 2: SUBGRAPHS (PROPER MULTI-AGENT) ====================
+
+# State for individual agents
+class AgentState(TypedDict):
+    messages: Annotated[Sequence[BaseMessage], add]
+    task: str
+    result: str
+
+# State for router
+class RouterState(TypedDict):
+    messages: Annotated[Sequence[BaseMessage], add]
+    task_type: Literal["code", "data", "text", "math"]
+    agent_result: str
+
+llm = ChatOllama(model="llama3.2", temperature=0.3)
+
+# ==================== DEFINE INDIVIDUAL AGENT GRAPHS ====================
+
+# CODE AGENT (independent graph)
+def code_agent_node(state: AgentState) -> dict:
+    """Code agent implementation"""
+    task = state["task"]
+    
+    code_prompt = ChatPromptTemplate.from_messages([
+        ("system", "You are an expert programmer."),
+        ("human", "{task}")
+    ])
+    
+    chain = code_prompt | llm
+    response = chain.invoke({"task": task})
+    
+    return {
+        "result": response.content,
+        "messages": [AIMessage(content=response.content)]
+    }
+
+# Build code agent graph
+code_workflow = StateGraph(AgentState)
+code_workflow.add_node("process", code_agent_node)
+code_workflow.set_entry_point("process")
+code_workflow.add_edge("process", END)
+
+# Compile code agent (this is a standalone agent!)
+code_agent = code_workflow.compile()
+
+# DATA AGENT (independent graph)
+def data_agent_node(state: AgentState) -> dict:
+    """Data agent implementation"""
+    task = state["task"]
+    
+    data_prompt = ChatPromptTemplate.from_messages([
+        ("system", "You are a data scientist."),
+        ("human", "{task}")
+    ])
+    
+    chain = data_prompt | llm
+    response = chain.invoke({"task": task})
+    
+    return {
+        "result": response.content,
+        "messages": [AIMessage(content=response.content)]
+    }
+
+data_workflow = StateGraph(AgentState)
+data_workflow.add_node("process", data_agent_node)
+data_workflow.set_entry_point("process")
+data_workflow.add_edge("process", END)
+
+# Compile data agent
+data_agent = data_workflow.compile()
+
+# TEXT AGENT (independent graph)
+def text_agent_node(state: AgentState) -> dict:
+    """Text agent implementation"""
+    task = state["task"]
+    
+    text_prompt = ChatPromptTemplate.from_messages([
+        ("system", "You are a writing expert."),
+        ("human", "{task}")
+    ])
+    
+    chain = text_prompt | llm
+    response = chain.invoke({"task": task})
+    
+    return {
+        "result": response.content,
+        "messages": [AIMessage(content=response.content)]
+    }
+
+text_workflow = StateGraph(AgentState)
+text_workflow.add_node("process", text_agent_node)
+text_workflow.set_entry_point("process")
+text_workflow.add_edge("process", END)
+
+# Compile text agent
+text_agent = text_workflow.compile()
+
+# ==================== ROUTER GRAPH (USES AGENTS AS NODES) ====================
+
+# Router classifier
+router_prompt = ChatPromptTemplate.from_messages([
+    ("human", """Classify this task:
+
+Task: {task}
+
+Respond with ONLY: CODE, DATA, or TEXT
+
+Classification:""")
+])
+
+router_chain = router_prompt | llm
+
+def router_node(state: RouterState) -> dict:
+    """Route to appropriate agent"""
+    task = state["messages"][-1].content
+    
+    logger.info(f"Routing task: {task[:50]}...")
+    
+    response = router_chain.invoke({"task": task})
+    classification = response.content.strip().upper()
+    
+    task_map = {
+        "CODE": "code",
+        "DATA": "data",
+        "TEXT": "text"
+    }
+    
+    task_type = task_map.get(classification, "text")
+    
+    logger.info(f"Routed to: {task_type}")
+    
+    return {"task_type": task_type}
+
+# Wrapper nodes that invoke the compiled agents
+def invoke_code_agent(state: RouterState) -> dict:
+    """Invoke code agent (separate graph)"""
+    logger.info("Invoking CODE AGENT (subgraph)")
+    
+    task = state["messages"][-1].content
+    
+    # Invoke the compiled code agent
+    result = code_agent.invoke({
+        "messages": [],
+        "task": task,
+        "result": ""
+    })
+    
+    return {
+        "agent_result": result["result"],
+        "messages": [AIMessage(content=f"[Code Agent] {result['result']}")]
+    }
+
+def invoke_data_agent(state: RouterState) -> dict:
+    """Invoke data agent (separate graph)"""
+    logger.info("Invoking DATA AGENT (subgraph)")
+    
+    task = state["messages"][-1].content
+    
+    # Invoke the compiled data agent
+    result = data_agent.invoke({
+        "messages": [],
+        "task": task,
+        "result": ""
+    })
+    
+    return {
+        "agent_result": result["result"],
+        "messages": [AIMessage(content=f"[Data Agent] {result['result']}")]
+    }
+
+def invoke_text_agent(state: RouterState) -> dict:
+    """Invoke text agent (separate graph)"""
+    logger.info("Invoking TEXT AGENT (subgraph)")
+    
+    task = state["messages"][-1].content
+    
+    # Invoke the compiled text agent
+    result = text_agent.invoke({
+        "messages": [],
+        "task": task,
+        "result": ""
+    })
+    
+    return {
+        "agent_result": result["result"],
+        "messages": [AIMessage(content=f"[Text Agent] {result['result']}")]
+    }
+
+# Router function
+def route_to_agent(state: RouterState) -> str:
+    """Route based on classification"""
+    return state["task_type"]
+
+# Build router graph
+router_workflow = StateGraph(RouterState)
+
+router_workflow.add_node("router", router_node)
+router_workflow.add_node("code", invoke_code_agent)
+router_workflow.add_node("data", invoke_data_agent)
+router_workflow.add_node("text", invoke_text_agent)
+
+router_workflow.set_entry_point("router")
+
+router_workflow.add_conditional_edges(
+    "router",
+    route_to_agent,
+    {
+        "code": "code",
+        "data": "data",
+        "text": "text"
+    }
+)
+
+router_workflow.add_edge("code", END)
+router_workflow.add_edge("data", END)
+router_workflow.add_edge("text", END)
+
+# Compile router
+multi_agent_router = router_workflow.compile()
+
+# Test
+def test_subgraph_router(task: str):
+    """Test router with subgraphs"""
+    
+    result = multi_agent_router.invoke({
+        "messages": [HumanMessage(content=task)],
+        "task_type": "text",
+        "agent_result": ""
+    })
+    
+    print(f"\n{'='*60}")
+    print(f"SUBGRAPH ROUTER (TRUE MULTI-AGENT)")
+    print(f"{'='*60}")
+    print(f"Task: {task}")
+    print(f"Routed to: {result['task_type']} agent")
+    print(f"Result: {result['agent_result'][:200]}...")
+
+if __name__ == "__main__":
+    test_subgraph_router("Write a Python function to sort a list")
+    test_subgraph_router("Analyze this dataset for trends")
+    test_subgraph_router("Write a blog post about AI")
+```
+
+---
+
+### Example 2: Supervisor with Subgraphs
+
+```python
+from typing import TypedDict, Annotated, Sequence, List
+from operator import add
+from langgraph.graph import StateGraph, END
+from langchain_ollama import ChatOllama
+from langchain_core.messages import HumanMessage, AIMessage, BaseMessage
+import logging
+
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
+
+# ==================== SUPERVISOR WITH TRUE WORKER AGENTS ====================
+
+# Worker agent state
+class WorkerState(TypedDict):
+    messages: Annotated[Sequence[BaseMessage], add]
+    task: str
+    context: str
+    result: str
+
+# Supervisor state
+class SupervisorState(TypedDict):
+    messages: Annotated[Sequence[BaseMessage], add]
+    plan: List[str]
+    current_step: int
+    worker_results: Annotated[List[dict], add]
+    final_result: str
+
+llm = ChatOllama(model="llama3.2", temperature=0.3)
+
+# ==================== DEFINE WORKER AGENT GRAPHS ====================
+
+# RESEARCHER AGENT
+def researcher_process(state: WorkerState) -> dict:
+    """Research worker"""
+    logger.info("RESEARCHER AGENT processing...")
+    
+    from langchain_core.prompts import ChatPromptTemplate
+    
+    prompt = ChatPromptTemplate.from_messages([
+        ("system", "You are a researcher. Gather information and facts."),
+        ("human", """Task: {task}
+Context: {context}
+
+Research:""")
+    ])
+    
+    chain = prompt | llm
+    response = chain.invoke({
+        "task": state["task"],
+        "context": state.get("context", "No context")
+    })
+    
+    return {"result": response.content}
+
+researcher_workflow = StateGraph(WorkerState)
+researcher_workflow.add_node("research", researcher_process)
+researcher_workflow.set_entry_point("research")
+researcher_workflow.add_edge("research", END)
+
+researcher_agent = researcher_workflow.compile()
+logger.info("✅ Researcher agent compiled")
+
+# WRITER AGENT
+def writer_process(state: WorkerState) -> dict:
+    """Writer worker"""
+    logger.info("WRITER AGENT processing...")
+    
+    from langchain_core.prompts import ChatPromptTemplate
+    
+    prompt = ChatPromptTemplate.from_messages([
+        ("system", "You are a writer. Create clear, engaging content."),
+        ("human", """Task: {task}
+Context: {context}
+
+Write:""")
+    ])
+    
+    chain = prompt | llm
+    response = chain.invoke({
+        "task": state["task"],
+        "context": state.get("context", "No context")
+    })
+    
+    return {"result": response.content}
+
+writer_workflow = StateGraph(WorkerState)
+writer_workflow.add_node("write", writer_process)
+writer_workflow.set_entry_point("write")
+writer_workflow.add_edge("write", END)
+
+writer_agent = writer_workflow.compile()
+logger.info("✅ Writer agent compiled")
+
+# REVIEWER AGENT
+def reviewer_process(state: WorkerState) -> dict:
+    """Reviewer worker"""
+    logger.info("REVIEWER AGENT processing...")
+    
+    from langchain_core.prompts import ChatPromptTemplate
+    
+    prompt = ChatPromptTemplate.from_messages([
+        ("system", "You are a reviewer. Provide constructive feedback."),
+        ("human", """Task: {task}
+Content to review: {context}
+
+Review:""")
+    ])
+    
+    chain = prompt | llm
+    response = chain.invoke({
+        "task": state["task"],
+        "context": state.get("context", "No context")
+    })
+    
+    return {"result": response.content}
+
+reviewer_workflow = StateGraph(WorkerState)
+reviewer_workflow.add_node("review", reviewer_process)
+reviewer_workflow.set_entry_point("review")
+reviewer_workflow.add_edge("review", END)
+
+reviewer_agent = reviewer_workflow.compile()
+logger.info("✅ Reviewer agent compiled")
+
+# ==================== SUPERVISOR GRAPH ====================
+
+def supervisor_plan(state: SupervisorState) -> dict:
+    """Supervisor creates plan"""
+    logger.info("SUPERVISOR creating plan...")
+    
+    plan = [
+        "Research the topic",
+        "Write content based on research",
+        "Review and improve content"
+    ]
+    
+    return {
+        "plan": plan,
+        "current_step": 0
+    }
+
+def invoke_researcher(state: SupervisorState) -> dict:
+    """Supervisor invokes researcher agent"""
+    logger.info("SUPERVISOR → calling RESEARCHER AGENT")
+    
+    task = state["messages"][-1].content
+    
+    # Get context from previous work
+    context = "\n".join([
+        f"{r['worker']}: {r['result'][:100]}..."
+        for r in state["worker_results"]
+    ]) if state["worker_results"] else "No previous context"
+    
+    # Invoke researcher agent (separate graph!)
+    result = researcher_agent.invoke({
+        "messages": [],
+        "task": task,
+        "context": context,
+        "result": ""
+    })
+    
+    worker_result = {
+        "worker": "researcher",
+        "result": result["result"]
+    }
+    
+    return {
+        "worker_results": [worker_result],
+        "current_step": 1
+    }
+
+def invoke_writer(state: SupervisorState) -> dict:
+    """Supervisor invokes writer agent"""
+    logger.info("SUPERVISOR → calling WRITER AGENT")
+    
+    task = state["messages"][-1].content
+    
+    # Get research context
+    context = ""
+    for r in state["worker_results"]:
+        if r["worker"] == "researcher":
+            context = r["result"]
+            break
+    
+    # Invoke writer agent (separate graph!)
+    result = writer_agent.invoke({
+        "messages": [],
+        "task": task,
+        "context": context,
+        "result": ""
+    })
+    
+    worker_result = {
+        "worker": "writer",
+        "result": result["result"]
+    }
+    
+    return {
+        "worker_results": [worker_result],
+        "current_step": 2
+    }
+
+def invoke_reviewer(state: SupervisorState) -> dict:
+    """Supervisor invokes reviewer agent"""
+    logger.info("SUPERVISOR → calling REVIEWER AGENT")
+    
+    # Get writer's content
+    context = ""
+    for r in state["worker_results"]:
+        if r["worker"] == "writer":
+            context = r["result"]
+            break
+    
+    # Invoke reviewer agent (separate graph!)
+    result = reviewer_agent.invoke({
+        "messages": [],
+        "task": "Review and improve this content",
+        "context": context,
+        "result": ""
+    })
+    
+    worker_result = {
+        "worker": "reviewer",
+        "result": result["result"]
+    }
+    
+    return {
+        "worker_results": [worker_result],
+        "current_step": 3
+    }
+
+def finalize(state: SupervisorState) -> dict:
+    """Finalize results"""
+    logger.info("SUPERVISOR finalizing...")
+    
+    # Get final result (from reviewer)
+    final = ""
+    for r in reversed(state["worker_results"]):
+        if r["worker"] == "reviewer":
+            final = r["result"]
+            break
+    
+    return {
+        "final_result": final,
+        "messages": [AIMessage(content=final)]
+    }
+
+# Router
+def supervisor_route(state: SupervisorState) -> str:
+    """Route to next worker"""
+    step = state["current_step"]
+    
+    if step == 0:
+        return "researcher"
+    elif step == 1:
+        return "writer"
+    elif step == 2:
+        return "reviewer"
+    else:
+        return "finalize"
+
+# Build supervisor graph
+supervisor_workflow = StateGraph(SupervisorState)
+
+supervisor_workflow.add_node("plan", supervisor_plan)
+supervisor_workflow.add_node("researcher", invoke_researcher)
+supervisor_workflow.add_node("writer", invoke_writer)
+supervisor_workflow.add_node("reviewer", invoke_reviewer)
+supervisor_workflow.add_node("finalize", finalize)
+
+supervisor_workflow.set_entry_point("plan")
+
+supervisor_workflow.add_conditional_edges(
+    "plan",
+    supervisor_route,
+    {
+        "researcher": "researcher",
+        "writer": "writer",
+        "reviewer": "reviewer",
+        "finalize": "finalize"
+    }
+)
+
+supervisor_workflow.add_conditional_edges(
+    "researcher",
+    supervisor_route,
+    {
+        "researcher": "researcher",
+        "writer": "writer",
+        "reviewer": "reviewer",
+        "finalize": "finalize"
+    }
+)
+
+supervisor_workflow.add_conditional_edges(
+    "writer",
+    supervisor_route,
+    {
+        "researcher": "researcher",
+        "writer": "writer",
+        "reviewer": "reviewer",
+        "finalize": "finalize"
+    }
+)
+
+supervisor_workflow.add_conditional_edges(
+    "reviewer",
+    supervisor_route,
+    {
+        "researcher": "researcher",
+        "writer": "writer",
+        "reviewer": "reviewer",
+        "finalize": "finalize"
+    }
+)
+
+supervisor_workflow.add_edge("finalize", END)
+
+# Compile supervisor
+multi_agent_supervisor = supervisor_workflow.compile()
+
+# Test
+def test_subgraph_supervisor(task: str):
+    """Test supervisor with worker agents as subgraphs"""
+    
+    result = multi_agent_supervisor.invoke({
+        "messages": [HumanMessage(content=task)],
+        "plan": [],
+        "current_step": 0,
+        "worker_results": [],
+        "final_result": ""
+    })
+    
+    print(f"\n{'='*60}")
+    print(f"SUPERVISOR WITH WORKER AGENTS (SUBGRAPHS)")
+    print(f"{'='*60}")
+    print(f"Task: {task}")
+    print(f"Workers called: {len(result['worker_results'])}")
+    for r in result['worker_results']:
+        print(f"  - {r['worker']}")
+    print(f"\nFinal Result:\n{result['final_result'][:300]}...")
+
+if __name__ == "__main__":
+    test_subgraph_supervisor("Write a short article about machine learning")
+```
+
+---
+
+## 🎯 When to Use Each Approach
+
+| Scenario | Use Approach |
+|----------|--------------|
+| Simple sequential workflow | ❶ Single graph with nodes |
+| Each "agent" is complex internally | ❷ Subgraphs |
+| Want to reuse agents in different systems | ❷ Subgraphs |
+| Need independent testing of agents | ❷ Subgraphs |
+| Agents scale independently | ❸ Distributed |
+| Enterprise microservices | ❸ Distributed |
+| Different teams build agents | ❸ Distributed |
+
+---
+
 
 ## 🚀 What's Next?
 

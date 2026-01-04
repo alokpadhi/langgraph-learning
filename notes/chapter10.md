@@ -1245,56 +1245,70 @@ def web_search_tool(query: str) -> str:
 # ==================== QUERY ANALYSIS ====================
 
 query_classifier_prompt = ChatPromptTemplate.from_messages([
-    ("human", """Analyze this query comprehensively:
+    ("system", """You are a query classification expert. Analyze queries and respond in valid JSON format."""),
+    ("human", """Analyze this query and respond with ONLY valid JSON (no markdown, no explanation):
 
-Query: {query}
+Query: "{query}"
 
-Determine:
-1. Complexity: SIMPLE (single fact), COMPLEX (synthesis needed), MULTI_HOP (multiple retrieval steps), CURRENT_EVENTS (needs recent info)
-2. Key concepts to search for (3-5 concepts)
-3. Whether it needs current/recent information (yes/no)
-4. Whether it's in-domain (about LangGraph/LLMs) or out-of-domain
+Classification rules:
+- CURRENT_EVENTS: Asks about "latest", "recent", "current", "new", "2024", "today"
+- MULTI_HOP: Requires combining multiple pieces of information
+- COMPLEX: Needs synthesis or comparison
+- SIMPLE: Single fact lookup
 
-Respond in JSON format:
-{{
-  "complexity": "SIMPLE|COMPLEX|MULTI_HOP|CURRENT_EVENTS",
-  "concepts": ["concept1", "concept2", "concept3"],
-  "needs_current": true|false,
-  "in_domain": true|false
-}}
+Output format (respond with ONLY this JSON):
+{{"complexity": "SIMPLE", "concepts": ["concept1", "concept2"], "needs_current": false, "in_domain": true}}
 
-Analysis:""")
+JSON:""")
 ])
 
 query_classifier_chain = query_classifier_prompt | llm
 
 def analyze_query_node(state: AdaptiveRAGState) -> dict:
-    """Comprehensive query analysis"""
+    """Comprehensive query analysis with robust parsing"""
     
     try:
         query = state["messages"][-1].content
-        
-        logger.info(f"Analyzing query: {query[:50]}...")
+        logger.info(f"Analyzing query: {query}")
         
         response = query_classifier_chain.invoke({"query": query})
         response_text = response.content.strip()
         
-        # Parse JSON
-        if "```json" in response_text:
-            response_text = response_text.split("```json")[1].split("```")[0].strip()
-        elif "```" in response_text:
-            response_text = response_text.split("```")[1].split("```")[0].strip()
+        # Log raw response for debugging
+        logger.info(f"Raw LLM response: {response_text[:200]}")
         
+        # Improved JSON extraction
+        analysis = None
+        
+        # Try multiple extraction strategies
         try:
+            # Strategy 1: Direct JSON parse
             analysis = json.loads(response_text)
-        except:
-            # Fallback parsing
-            analysis = {
-                "complexity": "SIMPLE",
-                "concepts": [],
-                "needs_current": False,
-                "in_domain": True
-            }
+        except json.JSONDecodeError:
+            try:
+                # Strategy 2: Extract from code block
+                if "```json" in response_text:
+                    json_text = response_text.split("```json")[1].split("```")[0].strip()
+                elif "```" in response_text:
+                    json_text = response_text.split("```")[1].split("```")[0].strip()
+                else:
+                    # Strategy 3: Find JSON object
+                    import re
+                    json_match = re.search(r'\{.*\}', response_text, re.DOTALL)
+                    if json_match:
+                        json_text = json_match.group(0)
+                    else:
+                        raise ValueError("No JSON found")
+                
+                analysis = json.loads(json_text)
+            except:
+                logger.warning("JSON parsing failed, using heuristic fallback")
+                analysis = None
+        
+        # Heuristic fallback if JSON parsing fails
+        if analysis is None:
+            logger.info("Using heuristic classification")
+            analysis = classify_query_heuristic(query)
         
         # Map complexity
         complexity_map = {
@@ -1314,7 +1328,11 @@ def analyze_query_node(state: AdaptiveRAGState) -> dict:
         concepts = analysis.get("concepts", [])
         needs_current = analysis.get("needs_current", False)
         
-        logger.info(f"Query complexity: {complexity}, Concepts: {concepts}, Needs current: {needs_current}")
+        # CRITICAL FIX: Force web search for current_events
+        if complexity == "current_events":
+            needs_current = True
+        
+        logger.info(f"✓ Classification - Complexity: {complexity}, Needs current: {needs_current}, Concepts: {concepts}")
         
         return {
             "original_query": query,
@@ -1324,13 +1342,56 @@ def analyze_query_node(state: AdaptiveRAGState) -> dict:
         }
     
     except Exception as e:
-        logger.error(f"Query analysis error: {e}")
+        logger.error(f"Query analysis error: {e}", exc_info=True)
+        # Safer fallback
+        query = state["messages"][-1].content
+        analysis = classify_query_heuristic(query)
+        
         return {
-            "original_query": state["messages"][-1].content,
-            "query_complexity": "simple",
-            "query_concepts": [],
-            "needs_web_search": False
+            "original_query": query,
+            "query_complexity": analysis["complexity"].lower(),
+            "query_concepts": analysis["concepts"],
+            "needs_web_search": analysis["needs_current"]
         }
+
+def classify_query_heuristic(query: str) -> dict:
+    """
+    Heuristic-based classification when LLM fails.
+    This ensures web search is triggered for obvious cases.
+    """
+    query_lower = query.lower()
+    
+    # Keywords indicating current information needed
+    current_keywords = ["latest", "recent", "current", "new", "today", "2024", "2025", "now"]
+    needs_current = any(keyword in query_lower for keyword in current_keywords)
+    
+    # Keywords indicating out-of-domain (not about LangGraph/LLMs)
+    out_domain_keywords = ["quantum", "physics", "biology", "chemistry", "sports", "weather"]
+    out_domain = any(keyword in query_lower for keyword in out_domain_keywords)
+    
+    # Determine complexity
+    if needs_current or out_domain:
+        complexity = "current_events"
+        needs_current = True
+    elif " and " in query_lower or "difference between" in query_lower or len(query.split()) > 20:
+        complexity = "complex"
+    elif "?" in query and len(query.split()) > 15:
+        complexity = "multi_hop"
+    else:
+        complexity = "simple"
+    
+    # Extract concepts (simple word extraction)
+    words = query.split()
+    concepts = [w for w in words if len(w) > 4 and w.lower() not in ["what", "how", "when", "where", "explain"]][:5]
+    
+    logger.info(f"Heuristic classification: {complexity}, needs_current: {needs_current}")
+    
+    return {
+        "complexity": complexity.upper(),
+        "concepts": concepts,
+        "needs_current": needs_current,
+        "in_domain": not out_domain
+    }
 
 # ==================== QUERY REFINEMENT ====================
 
@@ -1378,7 +1439,7 @@ def refine_query_node(state: AdaptiveRAGState) -> dict:
 # ==================== ADAPTIVE RETRIEVAL ====================
 
 def adaptive_retrieve_node(state: AdaptiveRAGState) -> dict:
-    """Retrieve using adaptive strategy"""
+    """Retrieve using adaptive strategy with better logging"""
     
     try:
         import time
@@ -1387,32 +1448,44 @@ def adaptive_retrieve_node(state: AdaptiveRAGState) -> dict:
         query = state.get("refined_query", state["original_query"])
         complexity = state["query_complexity"]
         needs_web = state["needs_web_search"]
+        iteration = state["iteration"]
         
         docs = []
         web_results = []
         strategy = "vector"
         fallback_used = False
         
+        logger.info(f"🔍 Retrieval attempt {iteration + 1} - Complexity: {complexity}, Needs web: {needs_web}")
+        
         # Determine retrieval strategy
         if complexity == "current_events" or needs_web:
             strategy = "web"
-            logger.info("Using WEB search strategy")
+            logger.info("📡 Using WEB search strategy")
             
             # Web search
-            result = web_search_tool.invoke(query)
-            web_results = [result]
+            try:
+                result = web_search_tool.invoke(query)
+                web_results = [result]
+                logger.info(f"✓ Web search returned: {result[:100]}...")
+            except Exception as e:
+                logger.error(f"Web search failed: {e}")
+                # Fallback to vector search
+                docs = vector_store.similarity_search(query, k=3)
+                strategy = "vector_fallback"
+                fallback_used = True
             
         elif complexity == "multi_hop":
             strategy = "multi_hop"
-            logger.info("Using MULTI-HOP strategy")
+            logger.info("🔗 Using MULTI-HOP strategy")
             
             # Retrieve for main query
             docs = vector_store.similarity_search(query, k=3)
             
             # Also retrieve for each concept
             for concept in state["query_concepts"][:3]:
-                concept_docs = vector_store.similarity_search(concept, k=2)
-                docs.extend(concept_docs)
+                if concept:  # Guard against empty concepts
+                    concept_docs = vector_store.similarity_search(concept, k=2)
+                    docs.extend(concept_docs)
             
             # Deduplicate
             unique_docs = []
@@ -1425,38 +1498,48 @@ def adaptive_retrieve_node(state: AdaptiveRAGState) -> dict:
             
         elif complexity == "complex":
             strategy = "hybrid"
-            logger.info("Using HYBRID strategy")
+            logger.info("🔀 Using HYBRID strategy")
             
             # Vector search
             docs = vector_store.similarity_search(query, k=5)
             
-            # Also get web for additional context
-            web_result = web_search_tool.invoke(query)
-            web_results = [web_result]
-            fallback_used = True
+            # CRITICAL FIX: Always add web for complex queries
+            try:
+                web_result = web_search_tool.invoke(query)
+                web_results = [web_result]
+                logger.info(f"✓ Hybrid web search returned: {web_result[:100]}...")
+                fallback_used = True
+            except Exception as e:
+                logger.warning(f"Hybrid web search failed: {e}")
             
         else:  # simple
             strategy = "vector"
-            logger.info("Using VECTOR search strategy")
+            logger.info("📚 Using VECTOR search strategy")
             
             # Standard vector search
             docs = vector_store.similarity_search(query, k=3)
         
         elapsed = time.time() - start_time
         
+        logger.info(f"✓ Retrieved {len(docs)} docs, {len(web_results)} web results in {elapsed:.2f}s")
+        
         # Create metrics
         metric = RetrievalMetrics(
             query=query,
             strategy_used=strategy,
             docs_retrieved=len(docs),
-            relevance_score=0.0,  # Will be filled by grading
+            relevance_score=0.0,
             retrieval_time=elapsed,
             iteration=state["iteration"] + 1,
             fallback_used=fallback_used,
             timestamp=datetime.now().isoformat()
         )
         
-        logger.info(f"Retrieved {len(docs)} docs, {len(web_results)} web results in {elapsed:.2f}s")
+        # CRITICAL FIX: Preserve existing web results if we're re-retrieving
+        existing_web = state.get("web_results", [])
+        if existing_web and not web_results:
+            logger.info(f"Preserving {len(existing_web)} existing web results")
+            web_results = existing_web
         
         return {
             "retrieved_docs": docs,
@@ -1467,11 +1550,11 @@ def adaptive_retrieve_node(state: AdaptiveRAGState) -> dict:
         }
     
     except Exception as e:
-        logger.error(f"Retrieval error: {e}")
+        logger.error(f"Retrieval error: {e}", exc_info=True)
         return {
             "retrieved_docs": [],
             "web_results": [],
-            "retrieval_strategy": "fallback",
+            "retrieval_strategy": "error",
             "iteration": 1
         }
 
@@ -1585,26 +1668,30 @@ Answer:""")
 generation_chain = generation_prompt | llm
 
 def generate_answer_node(state: AdaptiveRAGState) -> dict:
-    """Generate answer from all sources"""
+    """Generate answer from all sources with better formatting"""
     
     try:
         query = state["original_query"]
         
         # Format KB context
-        kb_context = "None"
+        kb_context = "None available"
         if state["retrieved_docs"]:
             kb_context = "\n\n".join([
-                f"[KB-{i+1}] {doc.page_content}"
-                for i, doc in enumerate(state["retrieved_docs"])
+                f"[Document {i+1}] {doc.page_content}"
+                for i, doc in enumerate(state["retrieved_docs"][:5])  # Limit to top 5
             ])
         
         # Format web context
-        web_context = "None"
+        web_context = "None available"
         if state["web_results"]:
             web_context = "\n\n".join([
-                f"[WEB-{i+1}] {result}"
+                f"[Web Source {i+1}] {result}"
                 for i, result in enumerate(state["web_results"])
             ])
+            logger.info(f"✓ Including {len(state['web_results'])} web results in generation")
+        
+        # Log what we're using
+        logger.info(f"Generating with {len(state['retrieved_docs'])} docs and {len(state['web_results'])} web results")
         
         # Generate
         response = generation_chain.invoke({
@@ -1622,7 +1709,7 @@ def generate_answer_node(state: AdaptiveRAGState) -> dict:
         if state["web_results"]:
             sources.append("web")
         
-        logger.info(f"Generated answer using sources: {sources}")
+        logger.info(f"✓ Generated answer using sources: {sources}")
         
         return {
             "generated_answer": answer,
@@ -1631,7 +1718,7 @@ def generate_answer_node(state: AdaptiveRAGState) -> dict:
         }
     
     except Exception as e:
-        logger.error(f"Generation error: {e}")
+        logger.error(f"Generation error: {e}", exc_info=True)
         return {
             "generated_answer": f"Error generating answer: {str(e)}",
             "messages": [AIMessage(content=f"Error: {str(e)}")],
