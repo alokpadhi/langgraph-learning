@@ -987,5 +987,3 @@ REMEMBER: Start simple, iterate!
 Start with a single agent. Add multi-agent only if needed. Add complex reasoning only if needed. Add HITL only if needed. Build up, don't build down.
 
 ---
-
-Does this give you the clear reference you need? Would you like me to walk through designing a specific system you have in mind using this framework?
